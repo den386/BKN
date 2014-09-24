@@ -1,5 +1,5 @@
-#ifndef PORTCONTROL_H
-#define PORTCONTROL_H
+#ifndef PortControl_H
+#define PortControl_H
 #include <QtSerialPort/QSerialPortInfo>
 #include <QObject>
 #include <QStringList>
@@ -22,6 +22,11 @@ public:
 //        QSerialPort::StopBits stopBits;
        // QString stringStopBits;
     };
+    struct test1 {
+        QString name;
+        qint32 baudRat9600;
+    };
+
 void ReadPortParameter();
 void SetPortParam(const QString &portname,QString speed,QString stopbits);
 void ConnectPort();
@@ -49,6 +54,8 @@ signals:
    void ReceivedPortName( QString str);             // Получено новое SMS
   void error(QString error);
   void readdata(QByteArray readdata);
+  void test(test1 t);
+
 public slots:
 
 void connectt();
@@ -68,4 +75,4 @@ QSerialPort *m_port;
 
 
 
-#endif // PORTCONTROL_H
+#endif // PortControl_H

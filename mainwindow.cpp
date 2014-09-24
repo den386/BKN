@@ -1,12 +1,14 @@
-#include "mainwindow.h"
+ #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "PortControl.h"
+#include "BKN.h"
 #include <QMessageBox>
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+  control = new BKN();
 m_control = new PortControl();
 
 
@@ -15,6 +17,8 @@ m_control = new PortControl();
 connect(m_control,SIGNAL(ReceivedPortName(QString)),SLOT(saveport(QString)));
 connect(ui->pushButton,SIGNAL(clicked()),this,SLOT(soed()));
 connect(m_control,SIGNAL(error(QString)),SLOT(error(QString)));
+connect(m_control,SIGNAL(test(test1)),SLOT(test(test1)));
+
 //ываываыва
 }
 
@@ -23,15 +27,31 @@ MainWindow::~MainWindow()
     delete ui;
 }
  void MainWindow::saveport(QString str){
-
+QByteArray a;
      ui->comboBox->addItem(str);
+     control->connect_BKN("COM2");
+     control->CMD_SET_STAT();
+     QByteArray array;
+      array.resize(6);
+             array[0] = 0x7E;
+             array[1] = 0x01;
+             array[2] = 0x7D;
+             array[3] = 0x5E;
+             array[4] = 0x80;
+             array[5] = 0x7E;
+
  }
 
+ void MainWindow::test(test1 t){
+
+     int k=t.baudRat9600;
+ }
    void MainWindow::soed(){
        m_control->SetPortParam(ui->comboBox->currentText(),ui->comboBox_2->currentText(),ui->comboBox_3->currentText());
    m_control->ConnectPort();
    QString str="2";
    m_control->writePort(str);
+
    //m_control->readPort();
    /////////ролролрол
    ///345345345
@@ -74,6 +94,7 @@ for(int i=0;i<m_control->StopBitlist.size();i++){
  void MainWindow::savespeed(QString str){
 
      ui->comboBox_2->addItem(str);
+
  }
  void MainWindow::savestopbits(QString str){
 

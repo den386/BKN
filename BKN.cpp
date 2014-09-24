@@ -1,4 +1,4 @@
-#include "PortControl.h"
+#include "BKN.h"
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
 #include "ui_mainwindow.h"
@@ -9,59 +9,27 @@
 #define RPPP_PACKET_SIMBOL			(0x7E)
 // Символ замены
 #define RPPP_REPLACE_SIMBOL			(0x7D)
-
-
 // Максимальная длина служебных данных пакета (начало + crc16 (7E 7E) + конец)
 //#define MaxServiceDataSize	(1 + 2 * 2 + 1)
 //// Максимальный размер данных в пакете
-//#define  MaxDataSize ((0xFFFF - MaxServiceDataSize) / 2);
-// Возвращает максимальный размер пакета в байтах для передачи массива
-// данных _array
-//#define RPPP_max_packet_size(_array) \
-//	(RPPP_MAX_SERVICE_DATA_SIZE + 2 * _countof(_array))
-
-PortControl::PortControl(QObject *parent)
+//#define  maxLen ((0xFFFF - MaxServiceDataSize) / 2);
+BKN::BKN(QObject *parent)
     : QObject(parent)
     , m_port(nullptr)
 {
 ////
 m_port=new QSerialPort(this);
-connect(m_port,SIGNAL(readyRead()),this,SLOT(read()));
-///лджkl
+ m_timer= new QTimer(this);
+quint16 MaxServiceDataSize=(1 + 2 * 2 + 1);
+quint16  maxLen= ((0xFFFF - MaxServiceDataSize) / 2);
+buf.resize(2 * maxLen + MaxServiceDataSize);
+//connect(m_port,SIGNAL(readyRead()),this,SLOT(read_data_slot()));
+  connect(m_timer, SIGNAL(timeout()), SLOT(read_data_slot()));
 }
 
-void PortControl::connectt(){
-    ReadPortParameter();
-}
-void PortControl::ReadPortParameter(){
-int i=0;
- foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
-
- Portlist << info.portName();
-
- PortSpeed.portname[i]= info.portName();
- i++;
-}
-          QString response("123");
-          t=Portlist.size();
-          //////////////////
-          Speedlist<<QStringLiteral("9600"),QSerialPort::Baud9600;
-          Speedlist<<QStringLiteral("19200"), QSerialPort::Baud19200;
-          Speedlist<<QStringLiteral("38400"), QSerialPort::Baud38400;
-          Speedlist<< QStringLiteral("115200"), QSerialPort::Baud115200;
-          Speedlist<< QStringLiteral("Custom");
-          //////////////////
-          StopBitlist<<QStringLiteral("1"), QSerialPort::OneStop;
-          StopBitlist<<QStringLiteral("2"), QSerialPort::TwoStop;
-          StopBitlist<<QStringLiteral("1.5"), QSerialPort::OneAndHalfStop;
-
-
-//тест22222
-
-//тест5
-}
-
-void PortControl::SetPortParam(const QString &portName,QString speed,QString stopbits){
+void BKN::connect_BKN(const QString &portName)
+{
+    BKN_status con_BKN_stat;//структура параметра сигнала(код ошибки,строка ошибки)
     if (!m_port) {
         m_port = new QSerialPort(portName);
        // connect(m_port, SIGNAL(readyRead()), SLOT(readData()));
@@ -70,94 +38,107 @@ void PortControl::SetPortParam(const QString &portName,QString speed,QString sto
         m_port->setPortName(portName);
     }
 
-  //  m_port->setPortName("COM2");
-    m_port->setBaudRate(static_cast<QSerialPort::BaudRate>(speed.toInt()));
-    m_port->setStopBits(static_cast<QSerialPort::StopBits>(stopbits.toInt()));
-    //m_port->setDataBits("8");
-}
-
-void PortControl::ConnectPort(){
-//quint8 mydata[] = {0xC8,0x16,0x7E};
-//    quint8 packet;
-//quint8 mydata1[100];
-//quint8 packet1=make_raw_data(mydata,sizeof(mydata),mydata1);
-   // QByteArray array;
-   // QString str="C8167E";
-//        array.resize(3);
-//         array[0] = 0xC8;
-//       array[1] = 0x16;
-//       array[2] = 0x7E;
-
-   // QByteArray array = QByteArray::fromHex("C8167E");
- //   int k=array.size();
-//make_raw_data1(array,array.length(),array1);
-
-   //QString str="x^16 + x^15 + x^2 + 1";
-   // crc16_modbus(mydata,sizeof(mydata));
-    QString error1=tr("Ошибка открытия порта");
+    m_port->setBaudRate(static_cast<QSerialPort::BaudRate>(115200));
+    m_port->setStopBits(static_cast<QSerialPort::StopBits>(1));
+    m_port->setDataBits(static_cast<QSerialPort::DataBits>(8));
 
     if (m_port->open(QIODevice::ReadWrite)) {
-         connect(m_port,SIGNAL(readyRead()),this,SLOT(read()));
-//            ui->actionConnect->setEnabled(false);
-//            ui->actionDisconnect->setEnabled(true);
-//ui->statusBar->showMessage(tr("Connect"));
+
+        // connect(m_port,SIGNAL(readyRead()),this,SLOT(read()));
+
+        //ui->statusBar->showMessage(tr("Connect"));
 
     } else {
-       emit error(error1);
+        con_BKN_stat.kod_error=-1;
+        con_BKN_stat.str_error="Соединение с портом не установлено";
+        emit connect_BKN_status(con_BKN_stat);
 
     }
 
-
- // writePort(str);
-  //readPort();
 }
-void PortControl::writePort(QString writedata){
-   QByteArray array;
-    array.resize(6);
-           array[0] = 0x7E;
-           array[1] = 0x01;
-           array[2] = 0x7D;
-           array[3] = 0x5E;
-           array[4] = 0x80;
-           array[5] = 0x7E;
+//запись в порт данных
+void BKN::write_data(QByteArray data){
 
-// QByteArray writedat=writedata.toUtf8();
-   //QByteArray array = QByteArray::fromHex(writedat);
-  //  QByteArray array =writedata.toInt(&ok,16);
-    QByteArray array1;
-  //  make_raw_data1(array,array.length(),array1);
- //   m_port->write(packet_data1);
-    m_port->write(array);
-
-array1=m_port->readAll();
-    //  receivedData();
-   // QByteArray data=writedata.toLocal8Bit();
-
-test1 t;
-t.baudRat9600=100;
-t.name="test";
-
-//m_port->write(writedat);
-emit test(t);
+    m_port->write(data);
+    data=NULL;
 }
+//считываем данные возвращает data_read
+QByteArray BKN::read_data(){
+   QByteArray data_read;
+   data_read= m_port->readAll();
+    return data_read;
+}
+//запись в порт команды запроса статуса
+void BKN::CMD_SET_STAT(){
 
-void PortControl::readPort(){
-
-//    QByteArray data=m_port->readAll();
+    QByteArray CMD_GET_STAT;
+    CMD_GET_STAT[0]=0x02;
+    make_raw_data1(CMD_GET_STAT,CMD_GET_STAT.length(),&packet_data);//функция формирует пакет согласно протоколу возвращает packet_data
+    write_data(packet_data);//запись в порт
 
 }
-void PortControl::read(){
-    QByteArray data=m_port->read(6);
-
-    emit readdata(data);
+//вкл таймер опроса статуса автоматический
+void BKN::read_data_status(int time){
+    m_timer->start(time);
 
 }
-PortControl::~PortControl()
-{
-    delete m_port;
+//слот формирования сигнала статуса
+void BKN::read_data_slot(){
+   int state;
+   QString str;
+    QByteArray status_data_read;
+    status_data_read=0;//данные пришедшие в порт
+    status_data_read= m_port->readAll();
+    CMD_SET_STAT();
+    if (status_data_read.isNull()){
+        state=0;
+        str="Устройство не отвечает";
+        emit status(state,str);
+    } else
+     {receivedData(status_data_read);
+        /////////
+        emit status(state,str);
+    }
+
+}
+//в функцию передается принятые из порта данные,из них формируется массив чистых данных согласно протоколу
+void BKN::receivedData(QByteArray data){
+    QByteArray data1;
+    quint8 new_byte;
+     data1= QByteArray::fromHex(data);
+    for (int i=0;i<=data1.length();i++){
+         new_byte= data1[i];
+      receivedByteData(new_byte);
+
+      }
+}
+//Запрос автоматический раз в 100мс статуса устройства,формирует сигнал emit status
+void BKN::CMD_GET_STATUS_AUTOMATION(QString &str){
+
+    CMD_SET_STAT();
+    read_data_status(100);
 }
 
-quint16 PortControl::crc16_modbus1(QByteArray data,quint32 len){
+//Запрос статуса устройства разовый(раз в 50мс) возвращает (0(1)(-1) ит.д,строку ошибки)
+int BKN::CMD_GET_STATUS(QString &str){
+
+
+    QByteArray data_read;
+    QByteArray data;
+    quint8 new_byte;
+    CMD_SET_STAT();
+   if (m_port->waitForReadyRead(50)){
+   data_read=read_data();
+   receivedData(data_read);
+   }
+    str="Устройство не отвечает на запрос статуса";
+      return 0;
+
+
+
+}
+
+quint16 BKN::crc16_modbus1(QByteArray data,quint32 len){
 
     static const quint16 wCRCTable[] = {
     0X0000, 0XC0C1, 0XC181, 0X0140, 0XC301, 0X03C0, 0X0280, 0XC241,
@@ -204,7 +185,9 @@ quint16 PortControl::crc16_modbus1(QByteArray data,quint32 len){
        }
        return wCRCWord;
 }
-quint16 PortControl::crc16_byte( quint16 crc,quint8 byte)
+
+
+quint16 BKN::crc16_byte( quint16 crc,quint8 byte)
 {static const quint16 wCRCTable[] = {
         0X0000, 0XC0C1, 0XC181, 0X0140, 0XC301, 0X03C0, 0X0280, 0XC241,
         0XC601, 0X06C0, 0X0780, 0XC741, 0X0500, 0XC5C1, 0XC481, 0X0440,
@@ -238,79 +221,17 @@ quint16 PortControl::crc16_byte( quint16 crc,quint8 byte)
         0X4E00, 0X8EC1, 0X8F81, 0X4F40, 0X8D01, 0X4DC0, 0X4C80, 0X8C41,
         0X4400, 0X84C1, 0X8581, 0X4540, 0X8701, 0X47C0, 0X4680, 0X8641,
         0X8201, 0X42C0, 0X4380, 0X8341, 0X4100, 0X81C1, 0X8081, 0X4040 };
-     //QByteArray array = QByteArray::fromRawData(data, sizeof(data));
-   //QByteArray array[0xC8];
-//    //QByteArray array=str.toUtf8();
-//   QByteArray array;
-//     array.resize(3);
-//      array[0] = 0xC8;
-//    array[1] = 0x16;
-//   array[2] = 0x7E;
-   //  ba[3] = 0x18;
-    // ba[4] = 0xca;
+
 
 
 
       return (crc >> 8) ^ wCRCTable[(crc & 0xFF) ^ byte];
 }
 
-//qint16 PortControl::make_raw_data(const quint8 *data, quint16 len, quint8 *packet_data){
-//    // Проверяем аргументы
-//quint8 mydata[] = {0xC8,0x16,0x7E};
-//        //if(len && !data) return 0;
-//      //  if(!packet_data) return 0;
-//       // if(len > RPPP_MAX_DATA_SIZE) return 0;
 
-//        // Ещё один указатель на данные пакета
-//        quint8* pd = packet_data;
-
-//        // Формируем заголовок пакета
-//        *pd++ = RPPP_PACKET_SIMBOL;
-//        // Данные пакета
-//        for(quint16 i = 0; i < len; i++)
-//        {
-//            if((data[i] != RPPP_PACKET_SIMBOL) && (data[i] != RPPP_REPLACE_SIMBOL))
-//            {
-//                *pd++ = data[i];
-//            }
-//            else
-//            {
-//                *pd++ = RPPP_REPLACE_SIMBOL;
-//                *pd++ = data[i] ^ 0x20;
-//            }
-//        }
-//        // Контрольная сумма
-//       quint16 crc = crc16_modbus(mydata,sizeof(mydata));
-//       quint8 crc_lo = (crc & 0x00FF) >> 0;
-//        quint8 crc_hi = (crc & 0xFF00) >> 8;
-//        if((crc_lo != RPPP_PACKET_SIMBOL) && (crc_lo != RPPP_REPLACE_SIMBOL))
-//        {
-//            *pd++ = crc_lo;
-//        }
-//        else
-//        {
-//            *pd++ = RPPP_REPLACE_SIMBOL;
-//            *pd++ = crc_lo ^ 0x20;
-//        }
-//        if((crc_hi != RPPP_PACKET_SIMBOL) && (crc_hi != RPPP_REPLACE_SIMBOL))
-//        {
-//            *pd++ = crc_hi;
-//        }
-//        else
-//        {
-//            *pd++ = RPPP_REPLACE_SIMBOL;
-//            *pd++ = crc_hi ^ 0x20;
-//        }
-//        // Окончание пакета
-//        *pd++ = RPPP_PACKET_SIMBOL;
-
-//        // Возвращаем общую длину пакета
-//        return (pd - packet_data);
-
-//}
-qint16 PortControl::make_raw_data1(QByteArray data, quint16 lenhth,QByteArray packet_data){
+qint16 BKN::make_raw_data1(QByteArray data, quint16 lenhth,QByteArray *packet_data){
     quint8 PacketSimbol = 0x7E;
-
+    QByteArray packet_data1;
     quint8 ReplaceSimbol = 0x7D;
     // Пока возвращаемого массива нет
     //packet_data = null;
@@ -381,34 +302,16 @@ qint16 PortControl::make_raw_data1(QByteArray data, quint16 lenhth,QByteArray pa
     }
     // Окончание пакета
     packet_data1[pd++] = (char)PacketSimbol;
-
+*packet_data=packet_data1;
     // Возвращаем общую длину пакета
     return len;
 
 }
-
-void PortControl::receivedData(){
-    QString writedata="7EC8167D5E7D5E7D5E7E";
-quint8 maxlen=writedata.length();
- quint16 MaxDataSize = ((0xFFFF - 6) / 2);
-    buf.resize(52);
-     //QByteArray array=writedata.toUtf8();
-    QByteArray array=m_port->readAll();
-
-    QByteArray data = QByteArray::fromHex(array);
-
-
-quint8 new_byte;
-        for (int i=0;i<=data.length();i++){
-           new_byte= data[i];
-        receivedByteData(new_byte);
-        }
-}
-bool PortControl::receivedByteData(quint8 new_byte){
+bool BKN::receivedByteData(quint8 new_byte){
 
 
        quint8 PacketSimbol = 0x7E;
-quint8 maxLen=11;
+//quint8 maxLen=11;
        quint8 ReplaceSimbol = 0x7D;
 
         // Пакет пока не считан
@@ -647,4 +550,8 @@ quint8 maxLen=11;
 
 
 
+}
+BKN::~BKN()
+{
+    delete m_port;
 }

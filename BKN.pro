@@ -14,9 +14,11 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    PortControl.cpp
+    PortControl.cpp \
+    BKN.cpp
 
 HEADERS  += mainwindow.h \
-    PortControl.h
+    PortControl.h \
+    BKN.h
 
 FORMS    += mainwindow.ui
